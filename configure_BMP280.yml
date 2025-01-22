@@ -1,0 +1,64 @@
+---
+
+# (cloned from configure_DS18B20.yml)
+# Perform actions required to read and publish temperatures from a BME280
+# sensor including
+# * enable i2c for GPIO
+# * copy pre-compiled binary that reads the value
+# * copy the helper script that runs the binary
+# * create a cron job to run the script at the desired interval
+# 
+# required ENV vars
+#
+# location - Used in the MQTT topic
+# measurement - Used to ID the thing measured (in topic)
+# interval - interval im minutes to invoke the script (in cron)
+#
+# Topic will be "HA/$(hostname)/{{location}}/{{measurement}}"
+# Broker will be 'mqtt'.
+#
+# Playbook assumes that https://github.com/HankB/raspberry-pi-bme280
+# has been cloned to ~/Programming/raspberry-pi-bme280 and executable
+# has been built.
+
+- name: Copy binary to destination
+  ansible.builtin.copy:
+    src: /home/hbarta/Programming/raspberry-pi-bme280/bme280
+    dest: /usr/local/bin/bme280
+    owner: hbarta
+    group: hbarta
+    mode: u=rx,g=rx,o=rx
+
+- name: Create ~/Downloads directory if it does not exist
+  ansible.builtin.file:
+    path: /home/hbarta/Downloads
+    state: directory
+    mode: '0755'
+
+- name: fetch wiringpi deb
+  ansible.builtin.get_url:
+    url: https://github.com/WiringPi/WiringPi/releases/download/3.2/wiringpi_3.2_armhf.deb
+    dest: /home/hbarta/Downloads/
+
+- name: install wiringpi
+  apt:
+    deb: /home/hbarta/Downloads/wiringpi_3.2_armhf.deb
+  
+- name: install libraries for the Python BME280 scripts
+  apt:
+    pkg:
+    - python3-smbus
+    - python3-bme280
+
+- name: enable i2c interface
+  shell: raspi-config nonint do_i2c 0
+
+- name: Add a cron job to run this
+  become: false # SSH user
+  cron:
+    name: run bme280 publisher
+    minute: "*/{{interval}}"
+    job: > 
+      /usr/local/bin/bme280 2>>/tmp/bme280_temp_humidity.txt |
+      /bin/mosquitto_pub -s -t \"HA/$(/bin/hostname)/{{ location }}/{{ measurement }}\" 
+      -h mqtt>>/tmp/bme280_temp_humidity_cron.txt 2>&1

@@ -1,0 +1,70 @@
+---
+# Install and provision an SD card on localhost (before first boot.)
+#
+# Usage:
+# Image the SD card using `rpi-imager`
+# Remove and reinsert the SD card and (if necessary) mount the root filesystem.
+# RpiOS mounts automatically, Debian/KDE does not.
+# Variables
+#   root_mount    - Mountpoint for root filesystem
+#   boot_mount    - Mountpoint for boot filesystem (the VFAT partition)
+#   spoof_mac     - MAC address to use for WiFi
+#   new_host_name - host name
+
+- name: Provision SD card following rpi-imager
+  hosts: localhost
+  connection: local 
+  tasks:
+
+# create a file for mapping the WiFi MAC address
+# Assume the typical driver `brcmfmac` used in `00-WiFi.link`
+  - name: MAC spoof template
+    ansible.builtin.template:
+      src: ./templates/00-WiFi.link
+      dest: "{{ root_mount }}/etc/systemd/network/00-WiFi.link"
+      owner: root
+      group: root
+      mode: u=rw,g=r,o=r
+
+  - name: Add the "spoof_mac" address
+    ansible.builtin.lineinfile:
+      path: "{{ root_mount }}/etc/systemd/network/00-WiFi.link"
+      regexp: '^MACAddress='
+      line: "MACAddress={{ spoof_mac }}"
+
+  - name: add button/off line to /boot/config.txt
+    lineinfile:
+      path: "{{ boot_mount }}/config.txt"
+      line: 'dtoverlay=gpio-shutdown,gpio_pin=7,active_low=1,gpio_pull=up'
+
+  - name: Check if passwordless sudo enabled
+    stat:
+      path: "{{ root_mount }}/etc/sudoers.d/010_pi-nopasswd"
+    register: passwordless_enabled
+
+  - name: prevent passwordless sudo
+    shell: "mv {{ root_mount }}/etc/sudoers.d/010_pi-nopasswd {{ root_mount }}/etc/sudoers.d/010_pi-nopasswd~"
+    when: passwordless_enabled.stat.exists
+
+  - name: preferred directory to specify NTP server
+    file: 
+      path: "{{ root_mount }}/etc/systemd/timesyncd.conf.d"
+      state: directory
+      mode: '0755'
+    when: ntp_server is defined
+
+  - name: copy NTP config template
+    ansible.builtin.template:
+      src: ./templates/ntp.conf
+      dest: "{{ root_mount }}/etc/systemd/timesyncd.conf.d/ntp.conf"
+      owner: root
+      group: root
+      mode: u=rw,g=r,o=r
+    when: ntp_server is defined
+
+  - name: substitute NTP server
+    ansible.builtin.lineinfile:
+      dest: "{{ root_mount }}/etc/systemd/timesyncd.conf.d/ntp.conf"
+      regexp: '^NTP='
+      line: "NTP={{ ntp_server }}"
+    when: ntp_server is defined

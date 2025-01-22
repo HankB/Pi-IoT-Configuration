@@ -1,0 +1,13 @@
+---
+
+# Execute following first boot
+# 
+# * update/upgrade (using post-boot.yml)
+#
+
+- name: prepare and customize target
+  hosts: all
+
+  tasks:
+  - include_tasks: post-boot.yml
+  - include_tasks: configure_BMP280.yml

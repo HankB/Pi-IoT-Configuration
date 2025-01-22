@@ -1,0 +1,57 @@
+---
+
+# required ENV vars
+#
+# checkmk_agent - .deb file for checkmk agent, assumed to be in ~/Downloads
+
+  - name: update
+    apt:
+      cache_valid_time: 3600
+      upgrade: no
+    register: update_result
+    retries: 5
+    until: update_result is success
+
+  - name: list upgradeable
+    shell: apt list --upgradeable
+    register: upgradeable
+
+  - name: show update results
+    debug: var=upgradeable.stdout_lines
+
+  - name: upgrade
+    apt:
+      cache_valid_time: 3600
+      install_recommends: no
+      upgrade: yes
+      autoclean: yes
+    retries: 5
+    register: upgrade_res
+    until: upgrade_res is success
+
+  - name: install commonly used applications
+    apt:
+      pkg:
+      - vim
+      - mosquitto-clients
+      - tree
+      - tmux
+      - s-tui
+      - stress-ng
+      - git
+
+  - name: copy checkmk agent
+    copy:
+      dest: "/tmp/{{checkmk_agent}}"
+      src: "~/Downloads/{{checkmk_agent}}"
+
+  - name: install checkmk agent
+    apt:
+      deb: "/tmp/{{checkmk_agent}}"
+  
+  - name: set locale
+    shell: "raspi-config nonint do_change_locale {{ locale }}"
+
+# https://www.raspberrypi.com/documentation/computers/configuration.html#boot-options-nonint
+  - name: Require login
+    shell: raspi-config nonint do_boot_behaviour B1

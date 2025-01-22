@@ -1,0 +1,42 @@
+---
+
+# Perform actions required to read and publish temperatures from a DS18B20
+# sensor including
+# * enable 1-Wire for GPIO
+# * copy compiled executable that reads the value
+# * create a cron job to run the executable at the desired interval
+# 
+# required ENV vars
+#
+# location - Used in the MQTT topic
+# measurement - Used to ID the thing measured
+# interval - interval im minutes to invoke the script
+# DS18B20_ID - ID of sensor to read (found in /sys/bus/w1/devices/)
+#
+# Topic will be "HA/$(hostname)/{{location}}/{{measurement}}"
+# Broker will be 'mqtt'.
+
+- name: copy ds18b20_to_json to destination 
+  ansible.builtin.copy:
+    src: /home/hbarta/Programming/DS18B20-to-JSON/C/ds18b20_to_json
+    dest: /usr/local/bin/ds18b20_to_json
+    owner: hbarta
+    group: hbarta
+    mode: u=rx,g=rx,o=rx
+
+- name: enable 1-wire interface
+  shell: raspi-config nonint do_onewire 0
+  notify:
+
+- name: Add a cron job to run this
+  become: false # SSH user
+  cron:
+    name: run DS18B20 publisher for {{ DS18B20_ID }}
+    minute: "*/{{interval}}"
+    job: > 
+      /usr/local/bin/ds18b20_to_json {{ DS18B20_ID }} 2>>/tmp/DS18B20_{{ DS18B20_ID }}_temp.txt | 
+      /bin/mosquitto_pub -s -t HA/$(/bin/hostname)/{{ location }}/{{ measurement }} -h mqtt 
+      >>/tmp/DS18B20_{{ DS18B20_ID }}_temp_humidity_cron.txt 2>&1
+
+- name: Reboot
+  ansible.builtin.reboot:

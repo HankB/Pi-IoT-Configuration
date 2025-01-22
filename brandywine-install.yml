@@ -1,0 +1,47 @@
+---
+
+# Execute following first boot
+# 
+# * update/upgrade (using post-boot.yml)
+#
+
+- name: prepare and customize target
+  hosts: all
+
+  tasks:
+  - import_tasks: post-boot.yml
+    tags: post
+
+  - import_tasks: configure_BMP280.yml
+    tags: BMP280
+    vars:
+        location: "lab"
+        measurement: "bme280_temp_humidity"
+        interval: "1"
+
+  - import_tasks: configure_AHT20.yml
+    tags: AHT20
+    vars:
+        location: "lab"
+        measurement: "aht20_temp_humidity"
+        interval: "1"
+
+  - import_tasks: configure_DS18B20.yml
+    tags: DS18B20
+    vars:
+        location: "lab"
+        measurement: "ds18b20_temp_28-3c01b607c935"
+        interval: "1"
+        DS18B20_ID: "28-3c01b607c935"
+
+  - import_tasks: configure_DS18B20.yml
+    tags: DS18B20
+    vars:
+        location: "lab"
+        measurement: "ds18b20_temp_28-3c01b607e46b"
+        interval: "1"
+        DS18B20_ID: "28-3c01b607e46b"
+
+  handlers:
+    - name: Reboot
+      reboot:
