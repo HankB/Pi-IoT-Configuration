@@ -1,5 +1,7 @@
 # Pi_IoT_configuration
 
+I have migrated this repo to a private server and I'm not sure if I should move it back.
+
 Playbooks for setting up Raspberry Pis used for IoT stuff.
 
 Playbooks to use after using `rpi-imager` to install the image and configure initial settings. Initial settings managed by `rpi-imager` include
