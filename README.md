@@ -1,6 +1,6 @@
 # Pi_IoT_configuration
 
-I have migrated this repo to a private server and I'm not sure if I should move it back.
+**I have migrated this repo to a private server and I'm not sure if I should move it back.**
 
 Playbooks for setting up Raspberry Pis used for IoT stuff.
 
