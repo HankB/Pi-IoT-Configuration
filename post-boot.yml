@@ -3,6 +3,7 @@
 # required ENV vars
 #
 # checkmk_agent - .deb file for checkmk agent, assumed to be in ~/Downloads
+# locale - e.g. en_US.UTF-8
 
   - name: update
     apt:
